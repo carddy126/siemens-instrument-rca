@@ -1,0 +1,1811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>西门子仪表故障根因分析知识库 | Siemens RCA Database</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #1e3a5f 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .siemens-accent {
+            background: linear-gradient(135deg, #009999 0%, #007acc 100%);
+        }
+        
+        .fault-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .fault-card:hover {
+            transform: translateY(-2px);
+            border-color: #009999;
+            box-shadow: 0 10px 30px rgba(0, 153, 153, 0.2);
+        }
+        
+        .fault-card.active {
+            border-color: #009999;
+            background: rgba(0, 153, 153, 0.1);
+        }
+        
+        .severity-critical { border-left: 4px solid #ef4444; }
+        .severity-high { border-left: 4px solid #f59e0b; }
+        .severity-medium { border-left: 4px solid #eab308; }
+        .severity-low { border-left: 4px solid #22c55e; }
+        
+        .root-cause-tag {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+        
+        .action-tag {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+        }
+        
+        .prevention-tag {
+            background: linear-gradient(135deg, rgba(0, 153, 153, 0.2) 0%, rgba(0, 122, 204, 0.2) 100%);
+            border: 1px solid rgba(0, 153, 153, 0.3);
+            color: #5eead4;
+        }
+        
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #009999 0%, #007acc 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .check-item {
+            transition: all 0.2s;
+        }
+        
+        .check-item:hover {
+            background: rgba(0, 153, 153, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .probability-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(71, 85, 105, 0.5);
+            overflow: hidden;
+        }
+        
+        .probability-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        
+        .tool-tip {
+            position: relative;
+            cursor: help;
+        }
+        
+        .tool-tip:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.95);
+            color: #e2e8f0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 50;
+            border: 1px solid rgba(71, 85, 105, 0.5);
+        }
+        
+        .siemens-logo {
+            background: linear-gradient(135deg, #009999 0%, #007acc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        @media print {
+            .no-print { display: none; }
+            .glass-panel { background: white !important; color: black !important; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="max-w-7xl mx-auto mb-8 no-print">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+            <div class="flex items-center space-x-4 mb-4 md:mb-0">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#009999] to-[#007acc] flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                    <span class="text-white font-bold text-2xl">S</span>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold siemens-logo">
+                        西门子仪表故障根因分析知识库
+                    </h1>
+                    <p class="text-slate-400 text-sm">Siemens SITRANS & SIPART Root Cause Analysis Database</p>
+                </div>
+            </div>
+            
+            <div class="flex space-x-3">
+                <select id="category-filter" onchange="filterFaults()" class="bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#009999]">
+                    <option value="all">全部仪表类型</option>
+                    <option value="temp">温度变送器 (SITRANS TF)</option>
+                    <option value="pressure">压力变送器 (SITRANS P)</option>
+                    <option value="magflow">电磁流量计 (SITRANS F M)</option>
+                    <option value="massflow">质量流量计 (SITRANS F C)</option>
+                    <option value="radar">雷达物位计 (SITRANS LR)</option>
+                    <option value="ultra">超声波物位计 (SITRANS LU)</option>
+                    <option value="positioner">阀门定位器 (SIPART PS2)</option>
+                </select>
+                <button onclick="exportReport()" class="px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm hover:bg-slate-700 transition-all">
+                    <i class="fas fa-download mr-2"></i>导出
+                </button>
+                <button onclick="window.print()" class="px-4 py-2 bg-[#009999] hover:bg-[#007acc] rounded-lg text-sm text-white transition-all">
+                    <i class="fas fa-print mr-2"></i>打印
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left: Fault List -->
+        <div class="lg:col-span-1 space-y-4 no-print" id="fault-list">
+            <!-- Generated by JS -->
+        </div>
+
+        <!-- Right: Detail View -->
+        <div class="lg:col-span-2">
+            <div id="detail-panel" class="glass-panel rounded-2xl p-6 min-h-[600px]">
+                <div class="flex flex-col items-center justify-center h-full text-slate-500">
+                    <i class="fas fa-hand-point-left text-4xl mb-4"></i>
+                    <p>请点击左侧故障条目查看详细根因分析</p>
+                    <p class="text-sm mt-2 text-slate-600">或向下滚动查看全部故障</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Print View: All Faults -->
+    <div class="max-w-7xl mx-auto mt-8 space-y-8 print-only" id="print-content" style="display:none;">
+        <!-- Populated by JS for printing -->
+    </div>
+
+    <script>
+        // 西门子仪表故障知识库（完整数据）
+        const faultDatabase = [
+            // 温度变送器
+            {
+                id: 'temp-open',
+                category: 'temp',
+                code: 'SENSOR-OPEN',
+                title: '温度传感器开路/断路故障',
+                severity: 'critical',
+                instrument: 'SITRANS TF/TR 温度变送器',
+                frequency: '高',
+                rootCauses: [
+                    {
+                        type: '传感器故障',
+                        probability: 40,
+                        causes: [
+                            '热电阻丝断裂：Pt100引线因振动疲劳断裂（尤其高温高压场合）',
+                            '接线端子氧化：潮湿环境导致接线柱腐蚀接触不良',
+                            '铠装层破损：机械损伤导致内部芯线断裂',
+                            '热点偶断偶：K型热电偶长期处于高温脆化'
+                        ]
+                    },
+                    {
+                        type: '线路问题',
+                        probability: 35,
+                        causes: [
+                            '补偿导线断线：热电偶延长线中间断裂（常见于穿管处）',
+                            '接线松动：端子排螺丝未拧紧，热胀冷缩后脱落',
+                            '电缆绝缘破损：信号线对地短路被误判为开路',
+                            '雷击过压：感应雷导致输入保护元件熔断'
+                        ]
+                    },
+                    {
+                        type: '组态错误',
+                        probability: 20,
+                        causes: [
+                            '传感器类型错选：组态为热电偶实际接热电阻',
+                            '接线方式错误：三线制接成两线制导致检测电路异常',
+                            '量程超限：超出传感器范围（如Pt100>850℃）触发保护'
+                        ]
+                    },
+                    {
+                        type: '模块故障',
+                        probability: 5,
+                        causes: [
+                            '输入通道损坏：A/D转换器前端保护二极管击穿',
+                            '冷端补偿故障：内置温度传感器失效（热电偶模式）'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '电阻测量', 
+                            detail: '断电测量Pt100：0℃应为100Ω，每1℃约0.385Ω变化。开路显示∞，短路显示<10Ω。热电偶应<100Ω（不含补偿线）。',
+                            tool: '精密万用表/电桥'
+                        },
+                        { 
+                            title: '线路通断', 
+                            detail: '在变送器端子处测量：断开传感器，短接远端，测通断。检查补偿导线：K型应为mV级信号，无断点。',
+                            tool: '万用表通断档'
+                        },
+                        { 
+                            title: '组态核查', 
+                            detail: '使用SIMATIC PDM或手操器检查：Sensor Type（Pt100/K/T）、Connection（2/3/4-wire）、Range。',
+                            tool: 'HART手操器/PDM'
+                        },
+                        { 
+                            title: '替换验证', 
+                            detail: '用已知良好的传感器接入，如正常则确认原传感器故障；如仍开路则检查变送器输入通道。',
+                            tool: '备用传感器'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '如工艺允许，切换至备用测温点或临时使用便携式红外测温',
+                        '检查接线端子：重新拧紧螺丝，清洁氧化层（砂纸打磨）',
+                        '短接测试：将变送器输入端短接，观察是否显示超下限（确认变送器正常）'
+                    ],
+                    repair: [
+                        '热电阻修复：如引线断裂，可剥开保护管重新焊接（需干燥环境）',
+                        '更换传感器：订购同分度号传感器（注意：插入深度、连接螺纹、防爆等级）',
+                        '补偿线接续：使用对应分度号补偿导线中间接头（K型用KX，不能接反）',
+                        '模块更换：SITRANS TF电子模块可现场更换（注意组态备份）'
+                    ],
+                    prevention: [
+                        '选用铠装热电偶/热电阻：抗振动性能优于装配式',
+                        '避免弯折：补偿导线弯曲半径>50mm，防止芯线疲劳',
+                        '定期检查：每季度检查端子排紧固情况（热胀冷缩易松）',
+                        '防雷保护：信号线加装信号避雷器（如菲尼克斯PT系列）'
+                    ]
+                },
+                cost: { field: 300, factory: 1500, savings: '现场焊接引线节约80%（vs更换整支传感器）' }
+            },
+            {
+                id: 'temp-drift',
+                category: 'temp',
+                code: 'TEMP-DRIFT',
+                title: '温度测量漂移/不准',
+                severity: 'medium',
+                instrument: 'SITRANS TF 温度变送器',
+                frequency: '中',
+                rootCauses: [
+                    {
+                        type: '传感器老化',
+                        probability: 30,
+                        causes: [
+                            'Pt100漂移：长期使用后R0偏离100Ω（>0.05%）',
+                            '热电偶退化：K型在>800℃长期使用后正极氧化，电动势降低',
+                            '护套渗碳：金属保护管渗碳导致Pt100污染阻值升高'
+                        ]
+                    },
+                    {
+                        type: '线路误差',
+                        probability: 25,
+                        causes: [
+                            '引线电阻：两线制连接时导线电阻未补偿（每10m约1Ω=2.6℃误差）',
+                            '补偿导线错用：K型热电偶使用E型补偿线，产生附加电势',
+                            '冷端温度变化：热电偶冷端靠近热源（>60℃）导致补偿不准'
+                        ]
+                    },
+                    {
+                        type: '干扰问题',
+                        probability: 20,
+                        causes: [
+                            '电磁干扰：变频器附近未屏蔽，50Hz工频干扰',
+                            '接地回路：多点接地形成环流（mV级信号易受干扰）',
+                            '射频干扰：对讲机靠近导致HART信号畸变影响测量'
+                        ]
+                    },
+                    {
+                        type: '安装问题',
+                        probability: 15,
+                        causes: [
+                            '插入深度不足：未达管道中心（流速最大处温度最具代表性）',
+                            '热传导误差：保护管外露部分过长，沿热传导损失',
+                            '响应迟缓：保护管太厚或填充物干燥（时间常数增大）'
+                        ]
+                    },
+                    {
+                        type: '校准失效',
+                        probability: 10,
+                        causes: [
+                            '变送器漂移：4-20mA输出漂移（电子元件老化）',
+                            '组态迁移：误操作导致零点/量程被修改'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '比对测试', 
+                            detail: '使用标准温度计（如二等标准铂电阻）并排放置，对比测量值。偏差>允许误差（如Pt100 A级±0.15℃）则异常。',
+                            tool: '标准温度计'
+                        },
+                        { 
+                            title: '线路检查', 
+                            detail: '检查接线方式：Pt100应为3线制（消除引线电阻）。测量引线电阻：3线制时两两测量，差值应<1Ω。',
+                            tool: '万用表'
+                        },
+                        { 
+                            title: '干扰测试', 
+                            detail: '观察波动：如有50Hz周期性波动，为电磁干扰。断开传感器，短接输入，观察是否稳定（确认变送器正常）。',
+                            tool: '示波器/趋势图'
+                        },
+                        { 
+                            title: '校准验证', 
+                            detail: '使用电阻箱模拟Pt100：输入100Ω应显示0℃，输入138.5Ω应显示100℃。如不准则变送器需校准。',
+                            tool: '精密电阻箱'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '如为干扰：将屏蔽层单端接地（变送器端），信号线与动力线分开走线',
+                        '如为引线电阻：改为三线制或四线制接法（SITRANS TF支持）',
+                        '如为冷端补偿：移动变送器远离热源，或检查冷端补偿设置'
+                    ],
+                    repair: [
+                        '传感器校准：送计量室进行R0、R100检查（油槽定点校准）',
+                        '变送器校准：使用SIMATIC PDM执行Two-point calibration（0℃和100℃点）',
+                        '更换传感器：如铂电阻漂移超差或热电偶退化',
+                        '安装整改：增加插入深度（加延长颈），加装保温层减少热损失'
+                    ],
+                    prevention: [
+                        '选用A级或AA级Pt100（精度优于B级）',
+                        '必须采用3线制或4线制（工业现场禁止2线制用于精密测量）',
+                        '补偿导线全程屏蔽，穿镀锌管接地',
+                        '每12个月校准一次（关键控制回路）'
+                    ]
+                },
+                cost: { field: 500, factory: 2000, savings: '现场校准节约送检费用75%' }
+            },
+            
+            // 压力变送器
+            {
+                id: 'pres-overload',
+                category: 'pressure',
+                code: 'OVERLOAD',
+                title: '压力变送器过载损坏',
+                severity: 'critical',
+                instrument: 'SITRANS P DSIII/P300/P500',
+                frequency: '中',
+                rootCauses: [
+                    {
+                        type: '工艺超压',
+                        probability: 50,
+                        causes: [
+                            '水锤冲击：泵启停或阀门快关产生压力波（可达正常压力3-5倍）',
+                            '堵塞超压：取压管堵塞（冻结/结晶）导致静压传递至高压侧',
+                            '操作失误：三阀组操作顺序错误（未开平衡阀直接开高压侧）',
+                            '设定错误：安全阀设定压力高于变送器过载极限（URL的1.5倍）'
+                        ]
+                    },
+                    {
+                        type: '选型错误',
+                        probability: 25,
+                        causes: [
+                            '量程选择过小：工作压力接近URL（应工作在10-90%量程）',
+                            '过载能力不足：未选用带过载保护型（如P300标准型仅1.5倍，P500可达4倍）',
+                            '介质兼容性：膜片材质不耐腐蚀（如316L用于盐酸环境）'
+                        ]
+                    },
+                    {
+                        type: '安装问题',
+                        probability: 15,
+                        causes: [
+                            '单向受压：差压表单侧受压（三阀组内漏或误操作）',
+                            '热冲击：高温蒸汽直接冲击膜片（未加冷凝圈）',
+                            '机械应力：管道应力未消除，法兰歪斜导致膜盒变形'
+                        ]
+                    },
+                    {
+                        type: '固有缺陷',
+                        probability: 10,
+                        causes: [
+                            '填充油膨胀：高温下硅油膨胀产生额外压力（未选高温型）',
+                            '膜片疲劳：频繁压力脉动导致金属疲劳（>10^6次循环）'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '外观检查', 
+                            detail: '检查膜片：变形、凹坑、裂纹、腐蚀。检查法兰：泄漏痕迹、螺栓松动。检查显示：是否显示"OVERLOAD"或固定值（饱和）。',
+                            tool: '目视/手操器'
+                        },
+                        { 
+                            title: '零点测试', 
+                            detail: '泄压至大气压（表压型），检查零点输出：应为4mA（或0%）。如偏移>5%或固定20mA，确认传感器损坏。',
+                            tool: '万用表mA档'
+                        },
+                        { 
+                            title: '超压记录', 
+                            detail: '查看DCS历史趋势：故障前是否有压力尖峰。检查相邻仪表（如压力开关）是否动作（确认真实超压事件）。',
+                            tool: 'DCS趋势'
+                        },
+                        { 
+                            title: '密封性', 
+                            detail: '进行静压测试：打压至工作压力1.5倍，检查膜盒与过程连接处是否渗漏（膜片损坏常伴随介质渗漏）。',
+                            tool: '压力测试台'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '隔离故障表：关闭根部阀，打开排污阀泄压（注意高温烫伤）',
+                        '启用旁路：如为控制回路，切换至手动或备用控制方案',
+                        '记录现场：拍照记录膜片状态、工艺参数（用于保险理赔或厂家分析）'
+                    ],
+                    repair: [
+                        '膜盒更换：SITRANS P系列膜盒可更换（需专用工具，建议厂家服务工程师）',
+                        '整机更换：如P300系列，直接更换表头（需重新组态）',
+                        '材质升级：腐蚀场合改用哈氏C膜片或钽膜片（DSIII可选）',
+                        '加装缓冲：增设阻尼器或缓冲管（消除水锤）'
+                    ],
+                    prevention: [
+                        '选用过载能力强的型号：P500可达100:1量程比，过载4倍URL',
+                        '安装顺序：三阀组操作必须"先开平衡，后开高低压，最后关平衡"',
+                        '水锤防护：泵出口加装水锤消除器，阀门选用缓闭型',
+                        '定期检查：每月检查零点（平衡阀开时应为0%）'
+                    ]
+                },
+                cost: { field: 0, factory: 8000, savings: '正确操作三阀组可避免90%的损坏' }
+            },
+            {
+                id: 'pres-drift',
+                category: 'pressure',
+                code: 'ZERO-DRIFT',
+                title: '压力变送器零点漂移',
+                severity: 'medium',
+                instrument: 'SITRANS P 全系列',
+                frequency: '高',
+                rootCauses: [
+                    {
+                        type: '温度影响',
+                        probability: 35,
+                        causes: [
+                            '环境温度变化：-40℃~+85℃范围内温漂（典型0.1%/10℃）',
+                            '介质温度传导：高温介质通过法兰传导至传感器（未加冷凝圈）',
+                            '阳光直射：表头暴晒导致内部温度>80℃'
+                        ]
+                    },
+                    {
+                        type: '安装应力',
+                        probability: 25,
+                        causes: [
+                            '管道应力：法兰不同心，强制连接导致膜盒预应力',
+                            '振动影响：泵/压缩机附近振动导致机械结构蠕变',
+                            '重力影响：差压表安装位置与校准位置不同（导压管液柱差）'
+                        ]
+                    },
+                    {
+                        type: '导压管问题',
+                        probability: 20,
+                        causes: [
+                            '液柱不平衡：差压表两侧导压管液位不一致（气体测量）',
+                            '气体积聚：液体测量时导压管内气泡未排净（高点未排气）',
+                            '结晶/凝固：介质结晶导致导压管部分堵塞，静压传递偏差'
+                        ]
+                    },
+                    {
+                        type: '电子漂移',
+                        probability: 15,
+                        causes: [
+                            'A/D基准漂移：内部电压基准随时间老化（年漂移0.1%）',
+                            '电容老化：传感器电容极板介电常数变化',
+                            '电磁阀漏：三阀组内漏导致单侧受压'
+                        ]
+                    },
+                    {
+                        type: '校准失效',
+                        probability: 5,
+                        causes: [
+                            '误操作校准：现场误按"Zero"键（SITRANS P DSIII有物理按键）',
+                            '组态被改：HART命令修改了零点位置'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '平衡测试', 
+                            detail: '差压表：打开三阀组平衡阀，高低压连通，输出应为4mA（0%）。如不为0%，记录偏差值。',
+                            tool: '三阀组操作'
+                        },
+                        { 
+                            title: '温度记录', 
+                            detail: '记录环境温度与介质温度。对比变送器温度规格（-40~85℃）。如>80℃需降温。',
+                            tool: '红外测温仪'
+                        },
+                        { 
+                            title: '导压管检查', 
+                            detail: '气体介质：检查高低压侧导压管液位（应干燥）。液体介质：检查排气阀是否有气泡。',
+                            tool: '排污/排气操作'
+                        },
+                        { 
+                            title: '振动测试', 
+                            detail: '使用测振仪测表体振动：>2g时需减震。对比同位置其他仪表（确认共性问题）。',
+                            tool: '测振仪'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '零点调整：使用"Zero"按钮或HART命令执行Zero Trim（需确认实际零压）',
+                        '排气/排液：打开导压管排气阀/排污阀，平衡两侧液柱（差压表）',
+                        '降温措施：加装遮阳罩，或改用毛细管远传（高温场合）'
+                    ],
+                    repair: [
+                        '重新校准：使用精密压力源（0.02级）执行五点校准（0,25,50,75,100%）',
+                        '安装整改：消除管道应力（加柔性接头），加装减振支架',
+                        '导压管改造：气体测量加冷凝器，液体测量加集气器',
+                        '更换膜盒：如漂移过大（>2%）且无法校准，更换传感器膜盒'
+                    ],
+                    prevention: [
+                        '定期零点检查：每月利用三阀组平衡状态检查零点',
+                        '温度管理：避免阳光直射，高温介质使用冷凝圈或远传法兰',
+                        '防振安装：振动场合选用分体式（表头与传感器分离）',
+                        '冬季伴热：导压管伴热防止介质凝固（注意：伴热管不可直接接触变送器）'
+                    ]
+                },
+                cost: { field: 0, factory: 3000, savings: '定期零点调整（现场免费）避免返厂' }
+            },
+            
+            // 电磁流量计
+            {
+                id: 'mag-empty',
+                category: 'magflow',
+                code: 'EMPTY-PIPE',
+                title: '电磁流量计空管报警',
+                severity: 'high',
+                instrument: 'SITRANS F M MAG 5100W/3100P',
+                frequency: '高',
+                rootCauses: [
+                    {
+                        type: '工艺状态',
+                        probability: 40,
+                        causes: [
+                            '实际空管：管道未充满液体（泵抽空、阀门关闭、罐体排空）',
+                            '两相流：液体中含气>10%（如发酵罐、除氧水）',
+                            '非满管：重力流管道液位低于电极水平（水平安装时）'
+                        ]
+                    },
+                    {
+                        type: '电极问题',
+                        probability: 30,
+                        causes: [
+                            '电极结垢：导电沉积物（水垢、污泥）覆盖电极，绝缘>1MΩ',
+                            '电极腐蚀：哈氏合金电极被腐蚀形成氧化层（高阻抗）',
+                            '电极松动：密封垫老化导致电极接触不良（渗漏风险）'
+                        ]
+                    },
+                    {
+                        type: '电气干扰',
+                        probability: 15,
+                        causes: [
+                            '电导率低：纯水（<5μS/cm）或有机溶剂导致信号弱',
+                            '接地不良：无接地环或接地不良，静电积累干扰测量',
+                            '变频器干扰：附近大功率变频器产生高频干扰（>10kHz）'
+                        ]
+                    },
+                    {
+                        type: '组态设置',
+                        probability: 10,
+                        causes: [
+                            '空管阈值过低：FTD（空管检测阈值）设置过于灵敏',
+                            '电极常数错误：更换传感器后未重新输入电极常数（K-factor）',
+                            '流向设置反：反向流设置与实际流向不符'
+                        ]
+                    },
+                    {
+                        type: '传感器损坏',
+                        probability: 5,
+                        causes: [
+                            '励磁线圈开路：线圈断线导致无法建立磁场（阻抗无穷大）',
+                            '衬里损坏：PTFE衬里鼓包或穿孔，介质渗入线圈'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '工艺确认', 
+                            detail: '确认管道是否满管：观察视镜、听管道声音（满管为沉闷流动声）。检查泵运行状态、前后阀门开度。',
+                            tool: '目视/工艺确认'
+                        },
+                        { 
+                            title: '电极检查', 
+                            detail: '拆下传感器（注意排空），检查电极表面：应光亮无垢。测量电极对地电阻：正常<50kΩ（湿润），>1MΩ为结垢或干燥。',
+                            tool: '万用表/软布'
+                        },
+                        { 
+                            title: '电导率测试', 
+                            detail: '使用电导率仪测量介质：水基介质应>20μS/cm。如<5μS/cm（如纯水），需改用超声波或涡街。',
+                            tool: '电导率仪'
+                        },
+                        { 
+                            title: '接地检查', 
+                            detail: '检查接地：接地环与管道连接可靠（电位均衡）。接地电阻<10Ω。禁止与电机共地。',
+                            tool: '接地电阻测试仪'
+                        },
+                        { 
+                            title: '空管功能', 
+                            detail: '使用SIMATIC PDM检查Empty Pipe Detection设置：阈值（FTD）是否过低，电极常数（EC）是否正确。',
+                            tool: 'PDM软件'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '如工艺空管：等待管道充满介质，或修改组态允许空管（输出保持或置零）',
+                        '如电极结垢：拆下清洗（软布擦拭，禁止硬物刮伤），或使用超声波清洗',
+                        '如电导率低：改用空管抑制功能关闭（仅适用于确信永远满管）'
+                    ],
+                    repair: [
+                        '电极清洁：使用5%稀盐酸浸泡（哈氏合金电极），软毛刷清洁，恢复光泽',
+                        '更换衬里：如PTFE衬里损坏，需返厂更换衬里和线圈（费用高）',
+                        '接地整改：加装接地环（PTFE衬里必须），或改用接地电极（MAG 5100W可选）',
+                        '参数重设：重新输入电极常数（传感器铭牌标注），调整FTD阈值'
+                    ],
+                    prevention: [
+                        '定期清洁：易结垢介质每3个月拆检电极（化学清洗）',
+                        '保证满管：竖直安装（流体低进高出），或水平安装时保证淹没电极',
+                        '接地规范：专用接地极，接地线截面积>4mm²',
+                        '避免低电导率：纯水测量改用涡街或超声波（电磁不适用）'
+                    ]
+                },
+                cost: { field: 500, factory: 6000, savings: '电极清洁（现场）vs 返厂更换传感器' }
+            },
+            {
+                id: 'mag-inaccurate',
+                category: 'magflow',
+                code: 'FLOW-ERROR',
+                title: '电磁流量计测量不准',
+                severity: 'medium',
+                instrument: 'SITRANS F M 系列',
+                frequency: '中',
+                rootCauses: [
+                    {
+                        type: '安装问题',
+                        probability: 30,
+                        causes: [
+                            '未满管：水平安装时液位低于电极（电极应水平或向上45°）',
+                            '前后直管段不足：泵/弯头后<5D，流场紊乱',
+                            '接地不良：无接地环导致电位分布不均（尤其塑料管）',
+                            '气泡附着：电极顶部积聚气泡（水平安装时）'
+                        ]
+                    },
+                    {
+                        type: '传感器老化',
+                        probability: 25,
+                        causes: [
+                            '衬里磨损：含固体颗粒介质冲刷PTFE/PFA衬里（粗糙度增加）',
+                            '电极磨损：尖锐边缘变圆滑，改变电流分布',
+                            '线圈老化：励磁电流下降（<额定90%），磁场强度不足'
+                        ]
+                    },
+                    {
+                        type: '组态错误',
+                        probability: 20,
+                        causes: [
+                            '口径错误：DN100传感器组态为DN80（K系数错误）',
+                            '单位错设：m³/h vs L/min未换算',
+                            '阻尼不当：阻尼时间<1秒导致波动大，>30秒响应慢'
+                        ]
+                    },
+                    {
+                        type: '介质变化',
+                        probability: 15,
+                        causes: [
+                            '电导率变化：浓度变化导致电导率改变（理论不影响，实际有轻微影响）',
+                            '粘度变化：高粘度（>50cP）时流态改变（层流）',
+                            '温度变化：高温导致衬里膨胀（内径变化）'
+                        ]
+                    },
+                    {
+                        type: '电气干扰',
+                        probability: 10,
+                        causes: [
+                            '同相干扰：励磁频率与电网频率差拍（50Hz vs 60Hz）',
+                            '串模干扰：电极引线平行动力线（>10cm）引入感应电压'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '比对测试', 
+                            detail: '与罐体液位变化率（质量平衡）、便携式超声波流量计对比。偏差>2%需排查。',
+                            tool: '便携式流量计'
+                        },
+                        { 
+                            title: '安装检查', 
+                            detail: '检查安装方向：电极应水平（避免气泡）或垂直（流体向上）。检查前后直管段：前5D后3D。',
+                            tool: '卷尺/目视'
+                        },
+                        { 
+                            title: 'K系数核查', 
+                            detail: '检查变送器组态中的Sensor Calibrated Factor（SCF）与传感器铭牌标注是否一致。',
+                            tool: 'PDM/手操器'
+                        },
+                        { 
+                            title: '励磁测试', 
+                            detail: '检查励磁电流：使用钳形表测励磁线电流，应为设定值（如20mA）。偏差>10%提示线圈问题。',
+                            tool: '钳形表'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '修正K系数：根据铭牌重新输入Sensor Factor和Zero Point',
+                        '调整阻尼：设为5-10秒（液体）或3-5秒（浆液）',
+                        '排气操作：水平安装时短暂倾斜传感器排出顶部气泡'
+                    ],
+                    repair: [
+                        '衬里检查：内窥镜查看衬里磨损（粗糙度Ra>0.5μm需更换）',
+                        '电极更换：如磨损严重，更换电极（需专业工具，防止漏水）',
+                        '安装整改：改为竖直安装（满管保证），或加装整流器（直管段不足时）',
+                        '信号线整改：采用双屏蔽电缆，内屏蔽单端接地（变送器端）'
+                    ],
+                    prevention: [
+                        '竖直安装优先：低进高出，保证满管（最佳实践）',
+                        '定期零点校准：充满静态液体时执行Zero Calibration（消除零点漂移）',
+                        '衬里保护：含砂介质选用PFA衬里（耐磨性优于PTFE）',
+                        '避免气蚀：泵入口防止真空（气蚀损坏衬里）'
+                    ]
+                },
+                cost: { field: 800, factory: 5000, savings: '正确安装和组态可避免80%的误差' }
+            },
+            
+            // 质量流量计
+            {
+                id: 'mass-zero',
+                category: 'massflow',
+                code: 'ZERO-UNSTABLE',
+                title: '质量流量计零点不稳定',
+                severity: 'high',
+                instrument: 'SITRANS F C MASS 2100/FC300',
+                frequency: '高',
+                rootCauses: [
+                    {
+                        type: '安装应力',
+                        probability: 35,
+                        causes: [
+                            '管道应力：法兰不同心，强制拉紧导致测量管预应力',
+                            '支撑不当：流量计作为管道支撑点（应无应力安装）',
+                            '热胀冷缩：管道热膨胀传递推力（未装膨胀节）'
+                        ]
+                    },
+                    {
+                        type: '两相流',
+                        probability: 30,
+                        causes: [
+                            '液体含气：泵入口漏气、涡流卷气（气泡进入测量管）',
+                            '气蚀：入口压力低于蒸汽压产生气泡（常见于高温液体）',
+                            '间歇流：灌装应用时的流量脉动（零点随流量变化）'
+                        ]
+                    },
+                    {
+                        type: '振动干扰',
+                        probability: 20,
+                        causes: [
+                            '机械共振：泵/压缩机频率与驱动频率（~100Hz）接近',
+                            '管道振动：大口径管道（>DN100）未支撑导致传递振动',
+                            '流体脉动：往复泵出口未加缓冲器'
+                        ]
+                    },
+                    {
+                        type: '电气问题',
+                        probability: 10,
+                        causes: [
+                            '接地不良：屏蔽层两端接地形成环流',
+                            '电源波动：24VDC纹波>5%影响驱动电路',
+                            '电缆过长：>300m导致信号衰减（mV级信号）'
+                        ]
+                    },
+                    {
+                        type: '传感器老化',
+                        probability: 5,
+                        causes: [
+                            '驱动线圈老化：驱动力不足（电流增大但振幅下降）',
+                            'Pick-off线圈退磁：灵敏度下降（输出信号弱）'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '应力检查', 
+                            detail: '检查安装：流量计应自然对中，法兰螺栓可用手轻松穿入。如管道重量压在表体上，存在应力。',
+                            tool: '目视/手检'
+                        },
+                        { 
+                            title: '含气检查', 
+                            detail: '观察入口管段：是否有气泡（涡流、漏气）。检查入口压力：应高于介质蒸汽压+0.5bar（防止气蚀）。',
+                            tool: '压力表/目视'
+                        },
+                        { 
+                            title: '零点测试', 
+                            detail: '充满液体，关闭前后阀，静态时执行Zero Point Calibration。观察Live Zero：应<0.5%量程，且稳定（不跳变）。',
+                            tool: 'SIMATIC PDM'
+                        },
+                        { 
+                            title: '振动测试', 
+                            detail: '使用测振仪测表体：振动速度>10mm/s需减震。检查频率成分：是否有100Hz附近峰值（驱动频率谐振）。',
+                            tool: '测振仪（频谱）'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '重新调零：充满液体，无流动，无气泡，执行Zero Calibration（需5分钟稳定）',
+                        '排气操作：入口加装消气器（Degasser），或改变安装位置（避免泵涡流区）',
+                        '减压：如入口压力过高（>50bar），降低压力（科氏力与压力有关）'
+                    ],
+                    repair: [
+                        '无应力安装：松开法兰螺栓，重新对中（使用对中工具），自由对中后紧固',
+                        '加装支撑：在流量计前后管道加装独立支撑（表体不受力）',
+                        '脉动阻尼：泵出口加装蓄能器或缓冲罐（消除流量脉动）',
+                        '更换传感器：如测量管裂纹（零点持续漂移且无法校准）'
+                    ],
+                    prevention: [
+                        '无应力安装规范：表体不得承重，法兰对中误差<1mm',
+                        '避免气蚀：入口压力>饱和蒸汽压+0.5bar，或降低介质温度',
+                        '定期调零：每月静态调零一次（消除长期漂移）',
+                        '禁止空管：科氏力流量计严禁空管运行（测量管剧烈振动损坏）'
+                    ]
+                },
+                cost: { field: 1000, factory: 15000, savings: '正确安装避免测量管损坏（更换费用高）' }
+            },
+            {
+                id: 'mass-density',
+                category: 'massflow',
+                code: 'DENSITY-ERR',
+                title: '质量流量计密度测量不准',
+                severity: 'medium',
+                instrument: 'SITRANS F C 系列',
+                frequency: '中',
+                rootCauses: [
+                    {
+                        type: '两相流影响',
+                        probability: 40,
+                        causes: [
+                            '液体含气：气泡改变等效密度（气液混合密度<纯液体）',
+                            '气团通过：大气泡通过时密度读数瞬间下降（锯齿波）',
+                            '分层流：气液分离导致测量管两侧密度不同（振动不对称）'
+                        ]
+                    },
+                    {
+                        type: '温度影响',
+                        probability: 25,
+                        causes: [
+                            '温度补偿失效：内置RTD漂移（未校准）',
+                            '温度梯度：测量管与温度传感器温差（快速加热时）',
+                            '材料膨胀：高温导致测量管刚度变化（影响谐振频率）'
+                        ]
+                    },
+                    {
+                        type: '校准失效',
+                        probability: 20,
+                        causes: [
+                            '密度系数错误：组态中Density Coefficient与铭牌不符',
+                            '零点漂移：零点不准导致密度基线偏移',
+                            '参考密度错：标定时使用的参考密度值错误'
+                        ]
+                    },
+                    {
+                        type: '介质特性',
+                        probability: 15,
+                        causes: [
+                            '非牛顿流体：剪切变稀流体（如聚合物）粘度影响振动',
+                            '可压缩流体：高压气体（>30bar）密度非线性',
+                            '多组分混合：浓度变化未实时补偿'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '含气检查', 
+                            detail: '观察密度趋势：如有周期性尖峰（下降），为气泡通过。对比实验室密度：取样化验，与表读数对比。',
+                            tool: '实验室密度计'
+                        },
+                        { 
+                            title: '温度检查', 
+                            detail: '对比内置温度与外部温度计：偏差>2℃说明RTD漂移。检查温度补偿：查看Density Temperature Compensation设置。',
+                            tool: '标准温度计'
+                        },
+                        { 
+                            title: '参数核查', 
+                            detail: '检查D1、D2系数（密度校准系数）：应与传感器铭牌一致。检查参考密度（Reference Density）组态。',
+                            tool: 'PDM软件'
+                        },
+                        { 
+                            title: '零点验证', 
+                            detail: '充满已知密度液体（如水@20℃=998kg/m³），检查密度读数。偏差>5kg/m³需重新校准。',
+                            tool: '标准液体'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '排气消气：入口加装消气罐，确保单相流进入流量计',
+                        '温度补偿：如温度传感器漂移，启用外部温度补偿（接RTD）',
+                        '重新组态：输入正确的Density Coefficient（D1, D2）'
+                    ],
+                    repair: [
+                        '密度校准：使用两种标准液（如水+酒精混合液），执行Density Calibration',
+                        '更换RTD：如内置温度传感器失效，更换温度元件（需返厂）',
+                        '安装整改：消除气源（改变泵入口位置，避免涡流）',
+                        '算法补偿：如无法避免含气，使用Multi-frequency技术（如有）补偿'
+                    ],
+                    prevention: [
+                        '保证单相流：入口加装消气器，泵入口防止漏气',
+                        '定期密度校准：每6个月使用纯水验证（20℃应为998kg/m³）',
+                        '温度管理：避免急剧温度变化（>10℃/min）',
+                        '避免空管：空管后必须重新调零和密度校准'
+                    ]
+                },
+                cost: { field: 600, factory: 8000, savings: '现场密度校准节约送检费用' }
+            },
+            
+            // 雷达物位计
+            {
+                id: 'radar-loss',
+                category: 'radar',
+                code: 'SIGNAL-LOSS',
+                title: '雷达物位计信号丢失',
+                severity: 'critical',
+                instrument: 'SITRANS LR560/LR250/LR460',
+                frequency: '中',
+                rootCauses: [
+                    {
+                        type: '安装问题',
+                        probability: 30,
+                        causes: [
+                            '天线遮挡：进料口物料飞溅覆盖天线（尤其固体粉末）',
+                            '安装位置错：靠近罐壁（<30cm），产生强干扰回波',
+                            '接管过长：喇叭口伸出接管>10mm（产生虚假回波）',
+                            '方向偏差：未垂直液面（倾斜导致反射波偏离）'
+                        ]
+                    },
+                    {
+                        type: '介质特性',
+                        probability: 25,
+                        causes: [
+                            '低介电常数：εr<1.5（如LPG、液氨），反射信号弱（<-40dB）',
+                            '湍流表面：剧烈搅拌或泡沫（>5cm）导致散射',
+                            '冷凝结露：蒸汽在喇叭口冷凝（水滴强反射掩盖液面）',
+                            '结晶附着：易结晶介质（如烧碱）在天线形成结晶层'
+                        ]
+                    },
+                    {
+                        type: '电气干扰',
+                        probability: 20,
+                        causes: [
+                            '电磁干扰：附近大功率对讲机、变频器（26GHz频段）',
+                            '接地不良：屏蔽层未接地（高频信号易受干扰）',
+                            '电源噪声：24VDC电源纹波大（开关电源质量差）'
+                        ]
+                    },
+                    {
+                        type: '组态错误',
+                        probability: 15,
+                        causes: [
+                            '量程设置小：实际物位超出设定量程（Max Distance）',
+                            '空罐阈值高：Empty Spectrum Calibration未做或失效',
+                            '虚假回波学习：未执行False Signal Suppression（罐底/焊缝干扰）'
+                        ]
+                    },
+                    {
+                        type: '硬件故障',
+                        probability: 10,
+                        causes: [
+                            '天线损坏：PP/PTFE天线腐蚀或机械损伤',
+                            '模块故障：高频模块（Gunn Oscillator）老化',
+                            '电缆故障：同轴电缆进水（阻抗失配）'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '回波曲线', 
+                            detail: '使用SIMATIC PDM查看Echo Curve：应有明显液面回波（峰值）。如全噪声（无峰值），检查天线。如峰值在盲区（<0.5m），为近端干扰。',
+                            tool: 'PDM软件'
+                        },
+                        { 
+                            title: '物理检查', 
+                            detail: '停机检查天线：清洁度（结露/粉尘）、完整性（裂纹）、安装（垂直度<5°）。',
+                            tool: '目视/手检'
+                        },
+                        { 
+                            title: '介电常数', 
+                            detail: '确认介质DK值：水=80，油=2，LPG=1.6。如DK<1.5，需改用导波雷达（LG系列）或低频雷达（6GHz）。',
+                            tool: '资料查询'
+                        },
+                        { 
+                            title: '信号强度', 
+                            detail: '查看Signal Strength：正常>-20dB（水），>-35dB（油）。如<-40dB且DK低，信号弱正常。',
+                            tool: 'PDM诊断'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '清洁天线：停机擦拭天线（软布，无纤维）。如结露，加装雨罩或吹扫装置',
+                        '虚假回波学习：空罐时执行Empty Spectrum，满罐时执行False Signal Suppression（抑制焊缝干扰）',
+                        '调整安装：如靠近罐壁，改用导波管（Still Pipe）或旁通管安装'
+                    ],
+                    repair: [
+                        '更换天线：如PTFE天线腐蚀，更换为PP或陶瓷天线（LR560）',
+                        '改用导波雷达：低DK介质（<2）改用LG系列（导波杆/缆）',
+                        '加装吹扫：固体粉料场合，加空气吹扫（0.5bar）防止天线积尘',
+                        '模块更换：高频模块故障需返厂（或整机更换）'
+                    ],
+                    prevention: [
+                        '定期清洁：粉尘/蒸汽场合每周检查天线',
+                        '安装规范：远离进料口（>1m），距罐壁>30cm，接管<100mm且喇叭口伸出接管',
+                        '选型正确：低DK介质（液氨、LPG）必须选低频雷达（LR460 6GHz）或导波雷达',
+                        '防雷保护：信号线加装信号避雷器（室外罐区）'
+                    ]
+                },
+                cost: { field: 400, factory: 8000, savings: '清洁天线vs整机更换' }
+            },
+            {
+                id: 'radar-false',
+                category: 'radar',
+                code: 'FALSE-ECHO',
+                title: '雷达物位计虚假回波/跳变',
+                severity: 'medium',
+                instrument: 'SITRANS LR 系列',
+                frequency: '高',
+                rootCauses: [
+                    {
+                        type: '内部干扰',
+                        probability: 35,
+                        causes: [
+                            '焊缝回波：罐体内焊缝、加强筋产生固定虚假回波（距离固定）',
+                            '搅拌器叶片：旋转叶片产生动态虚假回波（距离变化）',
+                            '进料流：固体物料下落产生的流动虚假回波（料流反射）',
+                            '接管反射：安装短管底部产生的环形反射（近距离强回波）'
+                        ]
+                    },
+                    {
+                        type: '安装问题',
+                        probability: 25,
+                        causes: [
+                            '多次反射：微波在罐顶-液面间多次反射（2倍距离处假峰）',
+                            '斜底反射：锥底罐底部倾斜反射（非垂直反射）',
+                            '障碍物：罐内加热盘管、支撑杆产生的固定回波'
+                        ]
+                    },
+                    {
+                        type: '介质波动',
+                        probability: 20,
+                        causes: [
+                            '液面湍流：搅拌、进料导致液面波动（回波位置跳动）',
+                            '泡沫层：厚泡沫（>10cm）导致微波散射（信号弱且跳变）',
+                            '分层界面：油水界面（介电常数突变产生两个回波）'
+                        ]
+                    },
+                    {
+                        type: '组态不当',
+                        probability: 15,
+                        causes: [
+                            'TVT曲线低：时间变阈值（Time Varying Threshold）设置过低，未滤除小回波',
+                            '算法选择错：Fast Mode（快速模式）用于波动液面导致跳变',
+                            '窗口设置宽：Acceptance Window太宽，锁定虚假回波'
+                        ]
+                    },
+                    {
+                        type: '电气噪声',
+                        probability: 5,
+                        causes: [
+                            '50Hz干扰：电源滤波不良（FFT分析可见50Hz峰值）',
+                            '电缆反射：同轴电缆阻抗不匹配（接头松动）'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '回波分析', 
+                            detail: '查看Echo Curve：真实回波应随液位变化而移动。虚假回波位置固定（如焊缝）或规律变化（如搅拌器）。',
+                            tool: 'PDM Echo Curve'
+                        },
+                        { 
+                            title: '历史趋势', 
+                            detail: '查看DCS趋势：跳变是否发生在特定液位（如50cm处始终跳变，为焊缝干扰）。是否随搅拌器开关变化。',
+                            tool: 'DCS趋势'
+                        },
+                        { 
+                            title: 'TVT曲线', 
+                            detail: '显示TVT（Time Varying Threshold）曲线：虚假回波应在TVT下方（被抑制）。如超出TVT，需提高TVT或学习抑制。',
+                            tool: 'PDM'
+                        },
+                        { 
+                            title: '参数检查', 
+                            detail: '检查Algorithm：波动液面应选"Slow Mode"或"Convoluted"。检查Response Rate：设为"Slow"（阻尼增大）。',
+                            tool: 'PDM组态'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '虚假回波学习：执行False Signal Suppression（抑制固定干扰，如焊缝）',
+                        '调整TVT：手动提高TVT曲线（牺牲小信号能力，抑制噪声）',
+                        '滤波设置：增大Damping（10-30秒）和Averaging（移动平均）'
+                    ],
+                    repair: [
+                        '安装整改：改用导波管（Still Pipe）消除搅拌器/焊缝干扰',
+                        '导波雷达替代：复杂工况改用LG系列（导波杆沿程抑制干扰）',
+                        '重新定位：避开焊缝（旋转天线方向），或移开障碍物',
+                        '算法优化：选用"Best of Echo"或"First Echo"策略（根据工况）'
+                    ],
+                    prevention: [
+                        '安装前测绘：了解罐内结构（焊缝、支撑位置），避开干扰源',
+                        '导波管应用：搅拌罐、加料罐必须使用导波管（LR250可配）',
+                        '定期学习：罐体结构改变（如新装搅拌器）后重新执行False Signal Suppression',
+                        '选型正确：泡沫/湍流场合选LR560（78GHz，波长短，不易穿透泡沫）'
+                    ]
+                },
+                cost: { field: 0, factory: 5000, savings: '虚假回波学习（软件）vs 硬件更换' }
+            },
+            
+            // 超声波物位计
+            {
+                id: 'ultra-blind',
+                category: 'ultra',
+                code: 'BLIND-ZONE',
+                title: '超声波物位计盲区遮挡/死区',
+                severity: 'high',
+                instrument: 'SITRANS LU150/LU180/LU240',
+                frequency: '高',
+                rootCauses: [
+                    {
+                        type: '物理遮挡',
+                        probability: 40,
+                        causes: [
+                            '接管过长：传感器伸出接管>5mm（声波在接管内多次反射）',
+                            '接管过细：DN80传感器装在DN50接管内（束角发散受阻）',
+                            '内部结构：罐内支撑杆、梯子位于盲区（<0.3-0.6m）内',
+                            '挂料堆积：粉末物料粘附在传感器表面（形成虚假反射面）'
+                        ]
+                    },
+                    {
+                        type: '泡沫/蒸汽',
+                        probability: 25,
+                        causes: [
+                            '厚泡沫层：泡沫吸收声波（>5cm厚泡沫完全衰减）',
+                            '水蒸气：高温蒸汽导致声速变化（343m/s@20℃ vs 403m/s@100℃）且衰减大',
+                            '粉尘云：固体加料时的粉尘云散射声波（信号弱）'
+                        ]
+                    },
+                    {
+                        type: '安装不当',
+                        probability: 20,
+                        causes: [
+                            '非垂直安装：倾斜导致声波反射至罐壁而非传感器（收不到回波）',
+                            '距壁太近：<30cm（近罐壁干扰）',
+                            '对准干扰物：正对进料口、搅拌器（湍流散射）'
+                        ]
+                    },
+                    {
+                        type: '电气问题',
+                        probability: 10,
+                        causes: [
+                            '灵敏度低：Gain设置过低（长距离或大衰减场合）',
+                            ' blanking过长：盲区（Blanking）设置>实际死区（浪费量程）',
+                            ' false echo：未抑制近端虚假回波（接管反射被当作液面）'
+                        ]
+                    },
+                    {
+                        type: '传感器老化',
+                        probability: 5,
+                        causes: [
+                            '压电陶瓷老化：发射功率下降（使用>5年）',
+                            '面腐蚀：PVDF膜片腐蚀粗糙（散射增大）'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '物理检查', 
+                            detail: '检查传感器表面：清洁度（粘附物）、完整性（裂纹）。检查安装：垂直度（<3°）、接管长度（应<传感器长度1/3）。',
+                            tool: '目视/手检'
+                        },
+                        { 
+                            title: '回波检测', 
+                            detail: '使用SIMATIC PDM查看Echo Profile：应有明显液面回波（高振幅）。如近端有强回波（<0.5m），为接管反射。',
+                            tool: 'PDM'
+                        },
+                        { 
+                            title: '声速校准', 
+                            detail: '检查温度补偿：内置温度传感器是否正常。对比实际温度与组态温度（偏差>10℃影响精度）。',
+                            tool: '温度计对比'
+                        },
+                        { 
+                            title: '盲区测试', 
+                            detail: '手动降低Blanking Distance（如从0.5m改为0.3m），观察是否能测到近距离液位（确认盲区设置过大）。',
+                            tool: 'PDM组态'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '清洁传感器：清除粘附物（软布，避免划伤PVDF膜片）',
+                        '降低盲区：修改Blanking Distance（注意：可能接收到虚假回波）',
+                        '提高增益：增大Gain（Sensitivity）设置（长距离或大衰减）'
+                    ],
+                    repair: [
+                        '安装整改：截短接管（喇叭口露出接管5-10mm），或改用法兰安装（无接管）',
+                        '避开干扰：移动安装位置（避开进料口、搅拌器、内部结构）',
+                        '改用雷达：泡沫/蒸汽场合改用雷达（LR系列，不受蒸汽影响）',
+                        '更换传感器：如压电陶瓷老化（发射电流增大但回波弱）'
+                    ],
+                    prevention: [
+                        '安装规范：接管长度<传感器长度1/3，接管直径≥传感器直径',
+                        '定期清洁：粘性介质每周清洁传感器表面（软布+酒精）',
+                        '避免蒸汽：超声波不适用于>80℃蒸汽场合（改用雷达）',
+                        '盲区预留：安装高度确保最高液位>盲区（Blinding Distance）+100mm'
+                    ]
+                },
+                cost: { field: 300, factory: 3000, savings: '截短接管vs更换传感器' }
+            },
+            {
+                id: 'ultra-vel',
+                category: 'ultra',
+                code: 'VELOCITY-ERR',
+                title: '超声波声速补偿误差',
+                severity: 'medium',
+                instrument: 'SITRANS LU 系列',
+                frequency: '中',
+                rootCauses: [
+                    {
+                        type: '温度影响',
+                        probability: 50,
+                        causes: [
+                            '温度传感器漂移：内置NTC漂移（未校准）',
+                            '温度梯度：传感器温度≠液体温度（如太阳晒传感器，液体阴凉）',
+                            '响应滞后：温度变化快（如蒸汽加热），传感器响应慢（时间常数5min）'
+                        ]
+                    },
+                    {
+                        type: '气体成分',
+                        probability: 25,
+                        causes: [
+                            '不同气体：空气中vs二氧化碳中声速不同（标准校准为空气）',
+                            '湿度变化：高湿度（>90%）声速增加（未补偿）',
+                            '分层气体：罐内上部热下部冷（声速非线性变化）'
+                        ]
+                    },
+                    {
+                        type: '压力影响',
+                        probability: 15,
+                        causes: [
+                            '高压气体：压力>10bar时声速轻微增加（未补偿）',
+                            '真空：负压下声速降低（极少应用）'
+                        ]
+                    },
+                    {
+                        type: '组态错误',
+                        probability: 10,
+                        causes: [
+                            '固定声速：组态为Fixed Velocity（343m/s）而非Temperature Compensation',
+                            '温度单位错：摄氏度 vs 华氏度混淆',
+                            '平均温度错：未输入正确的Average Temperature（用于平均声速计算）'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '温度比对', 
+                            detail: '对比传感器内置温度与标准温度计：偏差>3℃说明NTC漂移。检查温度趋势：是否随环境温度变化（正常），或固定不变（故障）。',
+                            tool: '标准温度计'
+                        },
+                        { 
+                            title: '声速验证', 
+                            detail: '测量已知距离（如1m），计算声速：Distance/(Time/2)。对比理论声速（@当前温度）。偏差>5%有误差。',
+                            tool: '卷尺/秒表'
+                        },
+                        { 
+                            title: '组态检查', 
+                            detail: '检查Temperature Compensation：应Enable。检查Temperature Source：应为Internal（内置传感器）或External（外部RTD）。',
+                            tool: 'PDM组态'
+                        },
+                        { 
+                            title: '介质确认', 
+                            detail: '确认气体介质：如为CO2、N2等非空气介质，需手动输入声速（Fixed Velocity）。',
+                            tool: '工艺确认'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '温度校准：输入Offset修正温度偏差（如显示25℃实际30℃，Offset=+5℃）',
+                        '改用固定声速：如气体成分稳定，改为Fixed Velocity（根据实际声速）',
+                        '外部温度：如传感器温度不代表环境，改用外部RTD（接至端子）'
+                    ],
+                    repair: [
+                        '更换传感器：如内置NTC损坏（显示-50℃或150℃超范围）',
+                        '算法补偿：对于分层气体（如罐顶热），改用Tapered Window算法（如支持）',
+                        '系统修正：DCS端加装温度补偿算法（根据实测温度修正物位）'
+                    ],
+                    prevention: [
+                        '遮阳防护：避免阳光直射传感器（导致温度≠液体温度）',
+                        '定期校准：每6个月用卷尺实测验证（满罐时对比）',
+                        '避免极端温变：如快速加热，改用雷达（不受温度影响）',
+                        '正确组态：必须启用Temperature Compensation（默认应开启）'
+                    ]
+                },
+                cost: { field: 200, factory: 2500, savings: '温度校准vs更换整机' }
+            },
+            
+            // 阀门定位器
+            {
+                id: 'pos-air',
+                category: 'positioner',
+                code: 'AIR-LEAK',
+                title: '阀门定位器漏气/耗气量大',
+                severity: 'medium',
+                instrument: 'SIPART PS2/PS100',
+                frequency: '高',
+                rootCauses: [
+                    {
+                        type: '气路密封',
+                        probability: 35,
+                        causes: [
+                            '接头松动：气管接头（快插或螺纹）未拧紧',
+                            'O型圈老化：阀杆密封、端盖密封圈（>3年老化）',
+                            '放大器泄漏：I/P转换器喷嘴挡板磨损（恒节流孔泄漏）',
+                            '排气口常开：消音器堵塞或阀芯未关严（持续排气）'
+                        ]
+                    },
+                    {
+                        type: '执行机构',
+                        probability: 30,
+                        causes: [
+                            '膜片破裂：执行器膜片（橡胶/尼龙）破裂，气从呼吸孔漏',
+                            '活塞密封：气缸式执行器活塞O圈磨损（内漏）',
+                            '阀座泄漏：阀芯未关严，介质压力反推（表现为定位器输出不足）'
+                        ]
+                    },
+                    {
+                        type: '设定问题',
+                        probability: 20,
+                        causes: [
+                            '零位不准：零点漂移导致挡板开度大（持续耗气）',
+                            '增益过高：P值设置过大，频繁调节（间歇性排气）',
+                            '摩擦大：阀杆填料过紧，定位器持续输出（无法稳定）'
+                        ]
+                    },
+                    {
+                        type: '气源问题',
+                        probability: 10,
+                        causes: [
+                            '压力过高：>6bar（定位器额定4-6bar），密封负荷增大',
+                            '含油含水：压缩机油污导致O圈溶胀或密封面粘附',
+                            '颗粒杂质：铁锈颗粒划伤密封面'
+                        ]
+                    },
+                    {
+                        type: '机械损坏',
+                        probability: 5,
+                        causes: [
+                            '反馈杆松：连接销磨损，反馈脱落（定位器全功率输出）',
+                            '凸轮磨损：特性化凸轮磨损导致非线性（频繁调节）'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '肥皂水检漏', 
+                            detail: '用肥皂水涂抹所有接头、端盖、阀杆：出现气泡即为漏点。重点检查I/P转换器排气口（应仅在调节时排气）。',
+                            tool: '肥皂水/喷壶'
+                        },
+                        { 
+                            title: '分段隔离', 
+                            detail: '关闭定位器输出阀，观察压力表：如压力下降，漏点在执行器膜片/气缸。如压力保持，漏点在定位器内部。',
+                            tool: '压力表'
+                        },
+                        { 
+                            title: '耗气量测试', 
+                            detail: '稳态时（阀位稳定）流量计测耗气：正常<1L/min（标准状态）。如>5L/min，存在明显泄漏。',
+                            tool: '浮子流量计'
+                        },
+                        { 
+                            title: '阀座检查', 
+                            detail: '全关阀后：下游仍有流量（听声音/摸温度），说明阀内漏（非定位器问题，但表现为定位器输出高）。',
+                            tool: '目视/听诊器'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '紧固接头：拧紧所有气管接头（注意：快插接头需压紧释放环再推入）',
+                        '更换密封：阀杆密封（V型填料）、O型圈（执行器/定位器）',
+                        '调整零位：手动调整挡板零位（使稳态时输出为0，不排气）'
+                    ],
+                    repair: [
+                        'I/P转换器：如喷嘴挡板磨损，更换I/P模块（PS2模块化设计，现场可换）',
+                        '执行器维修：更换膜片（拆下执行器，注意弹簧预紧力），研磨阀芯（内漏时）',
+                        '气路净化：加装过滤减压阀（带滤杯自动排水），定期排污',
+                        '定位器更换：如主阀体磨损（恒节流孔扩大），更换整机'
+                    ],
+                    prevention: [
+                        '定期检漏：每月肥皂水检查（尤其高温、振动场合）',
+                        '气源质量：压缩空气必须干燥（露点<-20℃）、无油（<0.1mg/m³）',
+                        '润滑维护：阀杆定期加润滑脂（减少摩擦，降低耗气）',
+                        'O型圈更换：每3年预防性更换密封圈（尤其高温>150℃场合）'
+                    ]
+                },
+                cost: { field: 500, factory: 4000, savings: '更换O型圈vs更换整机' }
+            },
+            {
+                id: 'pos-hunt',
+                category: 'positioner',
+                code: 'HUNTING',
+                title: '阀门定位器振荡/ hunting',
+                severity: 'high',
+                instrument: 'SIPART PS2/PS100',
+                frequency: '中',
+                rootCauses: [
+                    {
+                        type: '参数整定',
+                        probability: 40,
+                        causes: [
+                            '增益过高：P值过大（响应快但超调大，引起振荡）',
+                            '积分过快：I值过小（积分时间太短，系统不稳定）',
+                            '微分不当：D值过大（对噪声敏感，抖动）'
+                        ]
+                    },
+                    {
+                        type: '机械问题',
+                        probability: 30,
+                        causes: [
+                            '填料过紧：阀杆摩擦力大（静摩擦>动摩擦3倍，造成爬行）',
+                            '执行器过小：输出力不足（定位器全压仍推不动，过调）',
+                            ' backlash大：连接件间隙（反馈滞后，死区大）',
+                            '支撑松动：阀体支撑不足，流体冲击振动'
+                        ]
+                    },
+                    {
+                        type: '气路问题',
+                        probability: 15,
+                        causes: [
+                            '放大器增益高：容量放大器（Booster）增益过高',
+                            '气容不足：气管太细（<6mm）或太长（>30m），响应滞后',
+                            '压力不稳：气源压力波动（>±0.2bar），放大器敏感'
+                        ]
+                    },
+                    {
+                        type: '信号问题',
+                        probability: 10,
+                        causes: [
+                            '信号噪声：4-20mA含高频噪声（变频器干扰）',
+                            '接地回路：屏蔽层两端接地形成环流（mA信号波动）'
+                        ]
+                    },
+                    {
+                        type: '工艺因素',
+                        probability: 5,
+                        causes: [
+                            '流体脉动：泵出口压力脉动（正弦波动，频率与阀固有频率重合）',
+                            '空化闪蒸：阀内闪蒸产生冲击力（随机高频振动）'
+                        ]
+                    }
+                ],
+                diagnosis: {
+                    steps: [
+                        { 
+                            title: '观察 oscillation', 
+                            detail: '观察阀杆：是否周期性摆动（hunting）。频率：高频（>1Hz）多为电气/气路；低频（<0.5Hz）多为机械/参数。',
+                            tool: '目视'
+                        },
+                        { 
+                            title: '参数检查', 
+                            detail: '查看PID参数：P gain（通常<50），I time（通常>2s）。如Auto-tune后仍振荡，需手动优化。',
+                            tool: 'PDM/手操器'
+                        },
+                        { 
+                            title: '摩擦力测试', 
+                            detail: '手动操作：用螺丝刀推动反馈杆，感受阻力。如突然卡滞（静摩擦大），为填料过紧。',
+                            tool: '螺丝刀/手'
+                        },
+                        { 
+                            title: '信号测试', 
+                            detail: '测量4-20mA：是否稳定（波动<±0.1mA）。检查屏蔽：单端接地（DCS端或定位器端，不可两端）。',
+                            tool: '万用表mA档'
+                        },
+                        { 
+                            title: '气路测试', 
+                            detail: '检查气源压力：稳态时是否波动。检查放大器：排气是否频繁（应间歇）。',
+                            tool: '压力表/目视'
+                        }
+                    ]
+                },
+                solutions: {
+                    immediate: [
+                        '降低增益：减小P值（如从60减至30），增大I值（如从1s增至5s）',
+                        '切手动：如振荡剧烈，先将DCS切手动（保持阀位），防止损坏执行器',
+                        '松填料：轻微松动填料压盖（1/4圈），减少摩擦（注意：可能外漏）'
+                    ],
+                    repair: [
+                        'Auto-tune重调：执行Initiate Run（自动整定），选择Optimize for Stability（牺牲响应速度）',
+                        '更换填料：改用低摩擦填料（如PTFE V型，替代石墨）',
+                        '增执行器：如力不足，增大气缸直径或改用双作用',
+                        '消除间隙：紧固反馈杆连接销，消除 backlash',
+                        '加阻尼：DCS端加大输出滤波（Damping 2-5秒）'
+                    ],
+                    prevention: [
+                        '定期润滑：阀杆每月加润滑脂（降低摩擦系数）',
+                        '正确选型：执行器力矩>阀最大关闭力矩×1.5倍',
+                        '气源稳压：加装储气罐（>1L）缓冲压力脉动',
+                        '避免共振：改变阀门开度（避开流体频率与机械固有频率重合点）'
+                    ]
+                },
+                cost: { field: 800, factory: 6000, savings: '参数优化vs更换执行器' }
+            }
+        ];
+
+        // 渲染故障列表
+        function renderFaultList() {
+            const container = document.getElementById('fault-list');
+            const filter = document.getElementById('category-filter').value;
+            
+            const filtered = filter === 'all' 
+                ? faultDatabase 
+                : faultDatabase.filter(f => f.category === filter);
+            
+            container.innerHTML = filtered.map(fault => `
+                <div class="fault-card glass-panel p-4 rounded-xl severity-${fault.severity}" 
+                     onclick="showDetail('${fault.id}')" id="card-${fault.id}">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <span class="text-xs font-mono text-slate-500 bg-slate-800 px-2 py-1 rounded">${fault.code}</span>
+                            <span class="text-xs text-slate-400 ml-2">${fault.instrument}</span>
+                        </div>
+                        <span class="text-xs px-2 py-1 rounded ${
+                            fault.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
+                            fault.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                            fault.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                            'bg-green-500/20 text-green-400'
+                        }">
+                            ${fault.severity === 'critical' ? '紧急' :
+                              fault.severity === 'high' ? '高' :
+                              fault.severity === 'medium' ? '中' : '低'}
+                        </span>
+                    </div>
+                    <h3 class="font-bold text-white mb-2 text-sm">${fault.title}</h3>
+                    <div class="flex items-center text-xs text-slate-400">
+                        <i class="fas fa-chart-line mr-1"></i>
+                        发生频率: ${fault.frequency}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 显示详情
+        function showDetail(faultId) {
+            // 高亮选中
+            document.querySelectorAll('.fault-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`card-${faultId}`).classList.add('active');
+            
+            const fault = faultDatabase.find(f => f.id === faultId);
+            const panel = document.getElementById('detail-panel');
+            
+            // 生成根因分析HTML
+            const rootCausesHTML = fault.rootCauses.map((rc, idx) => `
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center">
+                            <span class="root-cause-tag px-3 py-1 rounded-full text-xs font-bold mr-3">
+                                ${rc.type}
+                            </span>
+                            <span class="text-xs text-slate-400">概率 ${rc.probability}%</span>
+                        </div>
+                        <div class="w-32 probability-bar">
+                            <div class="probability-fill ${rc.probability > 40 ? 'bg-red-500' : rc.probability > 25 ? 'bg-orange-500' : 'bg-yellow-500'}" 
+                                 style="width: ${rc.probability}%"></div>
+                        </div>
+                    </div>
+                    <ul class="space-y-1 ml-4">
+                        ${rc.causes.map(c => `<li class="text-sm text-slate-300 flex items-start"><span class="text-slate-500 mr-2">•</span>${c}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('');
+            
+            // 生成诊断步骤HTML
+            const diagnosisHTML = fault.diagnosis.steps.map((step, idx) => `
+                <div class="check-item flex items-start p-3 bg-slate-800/30 rounded-lg mb-2">
+                    <div class="step-number mr-3">${idx + 1}</div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-1">
+                            <h4 class="font-bold text-white text-sm">${step.title}</h4>
+                            <span class="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded tool-tip" data-tip="${step.tool}">
+                                <i class="fas fa-wrench mr-1"></i>${step.tool}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">${step.detail}</p>
+                        ${step.warning ? '<p class="text-xs text-red-400 mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>注意安全</p>' : ''}
+                    </div>
+                </div>
+            `).join('');
+            
+            // 生成解决方案HTML
+            const solutionsHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-slate-800/50 p-4 rounded-lg border border-red-500/30">
+                        <h4 class="text-red-400 font-bold mb-2 text-sm"><i class="fas fa-bolt mr-2"></i>紧急处理</h4>
+                        <ul class="space-y-2 text-xs text-slate-300">
+                            ${fault.solutions.immediate.map(s => `<li class="flex items-start"><span class="text-red-500 mr-2">▸</span>${s}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-slate-800/50 p-4 rounded-lg border border-green-500/30">
+                        <h4 class="text-green-400 font-bold mb-2 text-sm"><i class="fas fa-tools mr-2"></i>维修方案</h4>
+                        <ul class="space-y-2 text-xs text-slate-300">
+                            ${fault.solutions.repair.map(s => `<li class="flex items-start"><span class="text-green-500 mr-2">▸</span>${s}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-slate-800/50 p-4 rounded-lg border border-[#009999]/30">
+                        <h4 class="text-[#5eead4] font-bold mb-2 text-sm"><i class="fas fa-shield-alt mr-2"></i>预防措施</h4>
+                        <ul class="space-y-2 text-xs text-slate-300">
+                            ${fault.solutions.prevention.map(s => `<li class="flex items-start"><span class="text-[#5eead4] mr-2">▸</span>${s}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            // 成本对比
+            const costHTML = `
+                <div class="glass-panel p-4 rounded-lg border border-slate-700 mb-6">
+                    <h4 class="font-bold text-white mb-3"><i class="fas fa-coins text-[#009999] mr-2"></i>成本分析</h4>
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p class="text-xs text-slate-400 mb-1">现场处理</p>
+                            <p class="text-xl font-bold text-green-400">¥${fault.cost.field}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-400 mb-1">返厂维修</p>
+                            <p class="text-xl font-bold text-slate-400">¥${fault.cost.factory}</p>
+                        </div>
+                        <div class="bg-[#009999]/10 rounded-lg p-2">
+                            <p class="text-xs text-[#5eead4] mb-1">节约</p>
+                            <p class="text-lg font-bold text-[#5eead4]">¥${fault.cost.factory - fault.cost.field}</p>
+                            <p class="text-xs text-[#5eead4]">${fault.cost.savings}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            panel.innerHTML = `
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <span class="text-xs font-mono text-slate-500 bg-slate-800 px-3 py-1 rounded mr-2">${fault.code}</span>
+                            <span class="text-slate-400 text-sm">${fault.instrument}</span>
+                        </div>
+                        <button onclick="exportFault('${fault.id}')" class="text-xs text-[#009999] hover:text-[#5eead4]">
+                            <i class="fas fa-download mr-1"></i>导出详情
+                        </button>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white mb-2">${fault.title}</h2>
+                    <div class="flex items-center space-x-4 text-xs text-slate-400">
+                        <span><i class="fas fa-exclamation-circle mr-1"></i>严重度: ${fault.severity === 'critical' ? '紧急' : fault.severity === 'high' ? '高' : fault.severity === 'medium' ? '中' : '低'}</span>
+                        <span><i class="fas fa-chart-line mr-1"></i>发生频率: ${fault.frequency}</span>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- 根因分析 -->
+                    <div class="glass-panel p-6 rounded-xl border border-slate-700">
+                        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+                            <i class="fas fa-sitemap text-red-400 mr-2"></i>
+                            根因分析 (Root Cause Analysis)
+                        </h3>
+                        <div class="space-y-2">
+                            ${rootCausesHTML}
+                        </div>
+                    </div>
+                    
+                    <!-- 诊断步骤 -->
+                    <div class="glass-panel p-6 rounded-xl border border-slate-700">
+                        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+                            <i class="fas fa-stethoscope text-[#009999] mr-2"></i>
+                            诊断检查步骤
+                        </h3>
+                        ${diagnosisHTML}
+                    </div>
+                    
+                    <!-- 解决方案 -->
+                    <div class="glass-panel p-6 rounded-xl border border-slate-700">
+                        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+                            <i class="fas fa-wrench text-green-400 mr-2"></i>
+                            处理建议矩阵
+                        </h3>
+                        ${solutionsHTML}
+                    </div>
+                    
+                    <!-- 成本 -->
+                    ${costHTML}
+                </div>
+            `;
+            
+            // 滚动到顶部（移动端）
+            panel.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function filterFaults() {
+            renderFaultList();
+        }
+
+        function exportFault(faultId) {
+            const fault = faultDatabase.find(f => f.id === faultId);
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fault, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `${fault.code}_Siemens_RCA.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function exportReport() {
+            const allData = JSON.stringify(faultDatabase, null, 2);
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(allData);
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `西门子仪表故障根因分析知识库_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // 初始化
+        renderFaultList();
+    </script>
+</body>
+</html>
